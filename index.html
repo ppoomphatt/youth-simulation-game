@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Youth Decision Lab</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#0f172a;
+color:white;
+text-align:center;
+padding:30px;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+background:#1e293b;
+padding:30px;
+border-radius:15px;
+}
+
+button{
+padding:12px;
+margin:10px;
+border:none;
+border-radius:10px;
+background:#38bdf8;
+font-size:16px;
+cursor:pointer;
+}
+
+button:hover{
+background:#0ea5e9;
+}
+
+.choice{
+display:block;
+width:80%;
+margin:auto;
+}
+
+input{
+padding:10px;
+border-radius:8px;
+border:none;
+margin:5px;
+}
+
+#leaderboard{
+max-height:300px;
+overflow-y:auto;
+background:#020617;
+padding:10px;
+border-radius:10px;
+}
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<h1>Youth Decision Lab</h1>
+
+<div class="container" id="startScreen">
+
+<h2>ข้อมูลผู้เล่น</h2>
+
+<input id="playerName" placeholder="ชื่อผู้เล่น">
+
+<input id="schoolName" placeholder="สังกัดโรงเรียน">
+
+<br>
+
+<button onclick="startAssessment()">เริ่มแบบประเมิน</button>
+
+</div>
+
+
+<div class="container" id="assessmentScreen" style="display:none"></div>
+
+<div class="container" id="gameScreen" style="display:none">
+
+<h2 id="story"></h2>
+
+<div id="choices"></div>
+
+</div>
+
+
+<div class="container" id="resultScreen" style="display:none">
+
+<h2 id="profile"></h2>
+
+<canvas id="chart"></canvas>
+
+<h2>Leaderboard โรงเรียน</h2>
+
+<div id="leaderboard"></div>
+
+</div>
+
+
+<script>
+
+let playerName=""
+let schoolName=""
+
+let stats={
+
+health:50,
+risk:30,
+decision:50,
+social:50
+
+}
+
+let index=0
+
+function startAssessment(){
+
+playerName=document.getElementById("playerName").value
+schoolName=document.getElementById("schoolName").value
+
+document.getElementById("startScreen").style.display="none"
+document.getElementById("assessmentScreen").style.display="block"
+
+loadAssessment()
+
+}
+
+
+const assessmentQuestions=[
+
+{
+q:"คุณเคยดื่มแอลกอฮอล์หรือไม่",
+key:"self",
+
+options:[
+{text:"ไม่เคย",effect:{risk:-10}},
+{text:"เคยลอง",effect:{risk:5}},
+{text:"ดื่มบางครั้ง",effect:{risk:10}},
+{text:"ดื่มบ่อย",effect:{risk:20}}
+]
+
+},
+
+{
+q:"เพื่อนสนิทของคุณดื่มแอลกอฮอล์หรือไม่",
+key:"friend",
+
+options:[
+{text:"ไม่มี",effect:{social:-10}},
+{text:"บางคน",effect:{social:5}},
+{text:"ส่วนใหญ่",effect:{social:10}},
+{text:"เกือบทุกคน",effect:{social:15}}
+]
+
+},
+
+{
+q:"ครอบครัวของคุณดื่มแอลกอฮอล์หรือไม่",
+
+key:"family",
+
+options:[
+{text:"ไม่ดื่ม",effect:{health:5}},
+{text:"ดื่มบางครั้ง",effect:{}},
+{text:"ดื่มบ่อย",effect:{risk:5}},
+{text:"ดื่มทุกวัน",effect:{risk:10}}
+]
+
+},
+
+{
+q:"ในชุมชนของคุณมีการดื่มแอลกอฮอล์มากแค่ไหน",
+
+key:"community",
+
+options:[
+{text:"แทบไม่มี",effect:{risk:-5}},
+{text:"มีบ้าง",effect:{}},
+{text:"พบเห็นบ่อย",effect:{risk:5}},
+{text:"เป็นเรื่องปกติ",effect:{risk:10}}
+]
+
+}
+
+]
+
+function loadAssessment(){
+
+let div=document.getElementById("assessmentScreen")
+
+div.innerHTML="<h2>แบบประเมินพื้นฐาน</h2>"
+
+assessmentQuestions.forEach((q,i)=>{
+
+let html=`<h3>${q.q}</h3>`
+
+q.options.forEach((o,j)=>{
+
+html+=`
+<label>
+<input type="radio" name="q${i}" value="${j}">
+${o.text}
+</label><br>
+`
+
+})
+
+div.innerHTML+=html
+
+})
+
+div.innerHTML+=`<button onclick="applyAssessment()">เริ่มเกม</button>`
+
+}
+
+
+function applyAssessment(){
+
+assessmentQuestions.forEach((q,i)=>{
+
+let val=document.querySelector(`input[name="q${i}"]:checked`)
+
+if(!val) return
+
+let option=q.options[val.value]
+
+for(let k in option.effect){
+
+stats[k]+=option.effect[k]
+
+}
+
+})
+
+document.getElementById("assessmentScreen").style.display="none"
+document.getElementById("gameScreen").style.display="block"
+
+loadScene()
+
+}
+
+
+
+const scenarios=[
+
+{
+story:"เพื่อนชวนคุณไปงานปาร์ตี้ก่อนสอบ",
+
+choices:[
+
+{text:"ไปแต่ไม่ดื่ม",effect:{decision:5,social:5}},
+
+{text:"ดื่มเล็กน้อย",effect:{risk:10,health:-5}},
+
+{text:"ไม่ไป",effect:{decision:10}}
+
+]
+
+},
+
+{
+story:"เพื่อนล้อว่าคุณไม่กล้าดื่ม",
+
+choices:[
+
+{text:"ดื่มเพื่อพิสูจน์",effect:{risk:20}},
+
+{text:"ปฏิเสธ",effect:{decision:10}},
+
+{text:"หัวเราะแล้วเปลี่ยนเรื่อง",effect:{social:5}}
+
+]
+
+}
+
+]
+
+function loadScene(){
+
+if(index>=scenarios.length){
+
+endGame()
+
+return
+
+}
+
+let scene=scenarios[index]
+
+document.getElementById("story").innerText=scene.story
+
+let div=document.getElementById("choices")
+
+div.innerHTML=""
+
+scene.choices.forEach(c=>{
+
+let btn=document.createElement("button")
+
+btn.className="choice"
+
+btn.innerText=c.text
+
+btn.onclick=()=>choose(c.effect)
+
+div.appendChild(btn)
+
+})
+
+}
+
+function choose(effect){
+
+for(let k in effect){
+
+stats[k]+=effect[k]
+
+}
+
+index++
+
+loadScene()
+
+}
+
+
+function endGame(){
+
+document.getElementById("gameScreen").style.display="none"
+document.getElementById("resultScreen").style.display="block"
+
+let profile=""
+
+if(stats.risk<20) profile="Healthy Leader"
+
+else if(stats.risk<40) profile="Balanced Decision Maker"
+
+else if(stats.risk<60) profile="Peer Influenced"
+
+else profile="High Risk Player"
+
+document.getElementById("profile").innerText="ผลวิเคราะห์: "+profile
+
+drawChart()
+
+saveScore()
+
+showLeaderboard()
+
+}
+
+
+function drawChart(){
+
+new Chart(document.getElementById("chart"),{
+
+type:"radar",
+
+data:{
+
+labels:["Health","Decision","Social","Risk"],
+
+datasets:[{
+
+label:"Player",
+
+data:[
+
+stats.health,
+stats.decision,
+stats.social,
+100-stats.risk
+
+]
+
+}]
+
+}
+
+})
+
+}
+
+
+function saveScore(){
+
+let score=stats.decision+stats.health-stats.risk
+
+let data=JSON.parse(localStorage.getItem("scores")||"[]")
+
+data.push({
+
+player:playerName,
+school:schoolName,
+score:score
+
+})
+
+localStorage.setItem("scores",JSON.stringify(data))
+
+}
+
+
+function showLeaderboard(){
+
+let data=JSON.parse(localStorage.getItem("scores")||"[]")
+
+data.sort((a,b)=>b.score-a.score)
+
+let div=document.getElementById("leaderboard")
+
+div.innerHTML=""
+
+data.forEach((p,i)=>{
+
+div.innerHTML+=
+
+"<p>"+(i+1)+". "+p.school+" - "+p.player+" ("+p.score+")</p>"
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
